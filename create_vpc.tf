@@ -1,3 +1,4 @@
+# create vpc from module
 module "vpc" {
   source               = "./modules/vpc/"
   public_subnet_cidrs  = var.public_subnet_cidrs
