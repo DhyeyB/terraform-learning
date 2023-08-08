@@ -1,128 +1,37 @@
-resource "aws_eip" "nat" {
-  count = 2
-
-  domain = "vpc"
-}
-
 module "vpc" {
-  source = "terraform-aws-modules/vpc/aws"
-
-  name = "my-vpc"
-  cidr = "10.0.0.0/16"
-
-  azs             = ["eu-west-2a", "eu-west-2b"]
-  private_subnets = ["10.0.3.0/24", "10.0.4.0/24"]
-  public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
-
-  enable_nat_gateway  = true
-  single_nat_gateway  = false
-  reuse_nat_ips       = true
-  external_nat_ip_ids = aws_eip.nat.*.id
-
-  tags = {
-    Terraform   = "true"
-    Environment = "dev"
-  }
+  source               = "./modules/vpc/"
+  public_subnet_cidrs  = var.public_subnet_cidrs
+  private_subnet_cidrs = var.private_subnet_cidrs
+  azs                  = var.azs
 }
 
 
 
 
-# # creating vpc
-# resource "aws_vpc" "dhyey_vpc" {
-#   cidr_block = "10.0.0.0/16"
 
-#   tags = {
-#     Name = "Dhyey VPC"
-#   }
-# }
+# resource "aws_eip" "nat" {
+#   count = 2
 
-# # creating public subnet
-# resource "aws_subnet" "public_subnet" {
-#   count             = length(var.public_subnet_cidrs)
-#   vpc_id            = aws_vpc.dhyey_vpc.id
-#   cidr_block        = element(var.public_subnet_cidrs, count.index)
-#   availability_zone = element(var.azs, count.index)
-
-#   tags = {
-#     Name = "Public subnet ${count.index + 1}"
-#   }
-# }
-
-# # creating private subnet
-# resource "aws_subnet" "private_subnet" {
-#   count             = length(var.private_subnet_cidrs)
-#   vpc_id            = aws_vpc.dhyey_vpc.id
-#   cidr_block        = element(var.private_subnet_cidrs, count.index)
-#   availability_zone = element(var.azs, count.index)
-
-#   tags = {
-#     Name = "Private subnet ${count.index + 1}"
-#   }
-# }
-
-# # creating internet gateway
-# resource "aws_internet_gateway" "ig" {
-#   vpc_id = aws_vpc.dhyey_vpc.id
-
-#   tags = {
-#     Name = "Dhyey VPC IG"
-#   }
-# }
-
-# # creating reoute table for public subnet
-# resource "aws_route_table" "rt-public" {
-#   vpc_id = aws_vpc.dhyey_vpc.id
-
-#   route {
-#     cidr_block = "0.0.0.0/0"
-#     gateway_id = aws_internet_gateway.ig.id
-#   }
-
-#   tags = {
-#     Name = "Route Table"
-#   }
-# }
-
-# # associating public route table with public subnets
-# resource "aws_route_table_association" "public_subnet_association" {
-#   count          = length(var.public_subnet_cidrs)
-#   subnet_id      = element(aws_subnet.public_subnet[*].id, count.index)
-#   route_table_id = aws_route_table.rt-public.id
-# }
-
-# # creating elastic ip for nat gateway
-# resource "aws_eip" "ng_eip" {
-#   count  = length(var.private_subnet_cidrs)
 #   domain = "vpc"
 # }
 
-# # creating nat gateway
-# resource "aws_nat_gateway" "ng" {
-#   count         = length(var.public_subnet_cidrs)
-#   allocation_id = element(aws_eip.ng_eip[*].id, count.index)
-#   subnet_id     = element(aws_subnet.public_subnet[*].id, count.index)
+# module "vpc" {
+#   source = "terraform-aws-modules/vpc/aws"
+
+#   name = "my-vpc"
+#   cidr = "10.0.0.0/16"
+
+#   azs             = ["eu-west-2a", "eu-west-2b"]
+#   private_subnets = ["10.0.3.0/24", "10.0.4.0/24"]
+#   public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
+
+#   enable_nat_gateway  = true
+#   single_nat_gateway  = false
+#   reuse_nat_ips       = true
+#   external_nat_ip_ids = aws_eip.nat.*.id
 
 #   tags = {
-#     Name = " Nat gateway"
+#     Terraform   = "true"
+#     Environment = "dev"
 #   }
-# }
-
-
-# # creating route table for private subnet
-# resource "aws_route_table" "rt-private" {
-#   vpc_id = aws_vpc.dhyey_vpc.id
-#   count  = length(var.public_subnet_cidrs)
-
-#   route {
-#     cidr_block = "0.0.0.0/0"
-#     gateway_id = element(aws_nat_gateway.ng[*].id, count.index)
-#   }
-# }
-
-# # associating private route table with private subnet
-# resource "aws_route_table_association" "private_subnet_association" {
-#   count          = length(var.private_subnet_cidrs)
-#   subnet_id      = element(aws_subnet.private_subnet[*].id, count.index)
-#   route_table_id = element(aws_route_table.rt-private[*].id, count.index)
 # }
