@@ -7,9 +7,6 @@ module "vpc" {
 }
 
 
-
-
-
 # resource "aws_eip" "nat" {
 #   count = 2
 

@@ -50,7 +50,7 @@ resource "aws_route_table" "rt-public" {
   }
 
   tags = {
-    Name = "Route Table"
+    Name = "Route Table for public subnet"
   }
 }
 
@@ -69,9 +69,9 @@ resource "aws_eip" "ng_eip" {
 
 # creating nat gateway
 resource "aws_nat_gateway" "ng" {
-  count         = length(var.public_subnet_cidrs)
+  count         = length(var.private_subnet_cidrs)
   allocation_id = element(aws_eip.ng_eip[*].id, count.index)
-  subnet_id     = element(aws_subnet.public_subnet[*].id, count.index)
+  subnet_id     = element(aws_subnet.private_subnet[*].id, count.index)
 
   tags = {
     Name = " Nat gateway"
@@ -82,11 +82,15 @@ resource "aws_nat_gateway" "ng" {
 # creating route table for private subnet
 resource "aws_route_table" "rt-private" {
   vpc_id = aws_vpc.dhyey_vpc.id
-  count  = length(var.public_subnet_cidrs)
+  count  = length(var.private_subnet_cidrs)
 
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = element(aws_nat_gateway.ng[*].id, count.index)
+  }
+
+  tags = {
+    Name = "Route Table for private subnets"
   }
 }
 
