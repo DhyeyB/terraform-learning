@@ -1,0 +1,11 @@
+---
+- name: Ensure nginx is at the latest version
+  apt:
+   name: nginx
+   state: latest
+   update_cache: yes
+
+- name: Make sure nginx in running
+  systemd:
+   state: started
+   name: nginx
