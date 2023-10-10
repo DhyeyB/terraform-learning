@@ -7,29 +7,48 @@ module "vpc" {
 }
 
 
-# resource "aws_eip" "nat" {
-#   count = 2
+###############     Public EC2 Instance (Bation Host)     ###########
+resource "aws_security_group" "public-sg" {
+  name_prefix = "public-sg-"
+  vpc_id      = module.vpc.vpc_id
 
-#   domain = "vpc"
-# }
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
 
-# module "vpc" {
-#   source = "terraform-aws-modules/vpc/aws"
+resource "aws_instance" "punlic-instance" {
+  ami           = "ami-08e5424edfe926b43"
+  instance_type = "t2.micro"
+  # subnet_id       = "$(vpc.aws_subnet.public_subnet.id)"
+  subnet_id                   = module.vpc.public_subnet_ids["Public-subnet-1"]
+  security_groups             = [aws_security_group.public-sg.id]
+  key_name                    = "public-instance"
+  associate_public_ip_address = true
+}
 
-#   name = "my-vpc"
-#   cidr = "10.0.0.0/16"
 
-#   azs             = ["eu-west-2a", "eu-west-2b"]
-#   private_subnets = ["10.0.3.0/24", "10.0.4.0/24"]
-#   public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
+###############     Private EC2 Instance      ###########
+resource "aws_security_group" "private-sg" {
+  name_prefix = "private-sg"
+  vpc_id      = module.vpc.vpc_id
 
-#   enable_nat_gateway  = true
-#   single_nat_gateway  = false
-#   reuse_nat_ips       = true
-#   external_nat_ip_ids = aws_eip.nat.*.id
+  ingress {
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    security_groups = [aws_security_group.public-sg.id]
+  }
+}
 
-#   tags = {
-#     Terraform   = "true"
-#     Environment = "dev"
-#   }
-# }
+resource "aws_instance" "private-instance" {
+  ami                         = "ami-08e5424edfe926b43"
+  instance_type               = "t2.micro"
+  subnet_id                   = module.vpc.private_subnet_ids["Private-subnet-1"]
+  security_groups             = [aws_security_group.private-sg.id]
+  key_name                    = "private-instance"
+  associate_public_ip_address = true
+}
