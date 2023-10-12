@@ -7,11 +7,12 @@ module "vpc" {
 }
 
 locals {
-  ami           = "ami-08e5424edfe926b43"
-  instance_type = "t2.micro"
-  key_name      = "public-instance"
-  user          = "ubuntu"
-  private_key   = file("~/Downloads/public-instance.pem")
+  ami                = "ami-08e5424edfe926b43"
+  instance_type      = "t2.micro"
+  key_name           = "public-instance"
+  user               = "ubuntu"
+  private_key        = file("~/Downloads/public-instance.pem")
+  instance_disk_size = 30
 }
 
 
@@ -39,12 +40,40 @@ resource "aws_security_group" "public-sg" {
 }
 
 resource "aws_instance" "nginx" {
-  ami                         = local.ami
-  instance_type               = local.instance_type
-  subnet_id                   = module.vpc.public_subnet_ids["Public-subnet-1"]
-  security_groups             = [aws_security_group.public-sg.id]
-  key_name                    = local.key_name
-  associate_public_ip_address = true
+  ami                     = local.ami
+  instance_type           = local.instance_type
+  subnet_id               = module.vpc.public_subnet_ids["Public-subnet-1"]
+  security_groups         = [aws_security_group.public-sg.id]
+  key_name                = local.key_name
+  disable_api_termination = true
+  #   associate_public_ip_address = true
+  ebs_block_device {
+    device_name = "/dev/sda1"
+    volume_size = local.instance_disk_size
+  }
+  user_data = <<-EOF
+    #!/bin/bash
+      sudo apt-get -y update
+      sudo adduser --disabled-password --gecos '' deploy
+      sudo passwd -d deploy
+      sudo usermod -aG sudo deploy
+      sudo su deploy
+      sudo mkdir -p /home/deploy/.ssh
+      sudo mkdir -p /opt/edugem/apps
+      sudo mkdir -p /opt/edugem/logs
+      sudo mkdir -p /opt/edugem/scripts
+      sudo mkdir -p /opt/edugem/data
+      sudo chown -R deploy:deploy /home/deploy
+      sudo chown -R deploy:deploy /opt/edugem
+      sudo chown -R 775 /opt/edugem
+      sudo apt-get install -y nginx
+      sudo service apache2 stop
+      sudo systemctl disable apache2
+      sudo systemctl enable nginx
+      sudo service nginx restart
+      sudo apt-get install -y git
+      sudo apt install -y postgresql postgresql-contrib
+    EOF
 
   provisioner "remote-exec" {
     inline = ["echo 'wait untill ssh is ready'"]
@@ -58,15 +87,27 @@ resource "aws_instance" "nginx" {
   }
 }
 
-
-
-resource "null_resource" "run_ansible" {
-  triggers = {
-    instance_id = aws_instance.nginx.id
-  }
-
-  provisioner "local-exec" {
-    command = "ansible-playbook -i ${aws_instance.nginx.public_ip}, --private-key ~/Downloads/public-instance.pem ./ansible/nginx.yml"
-  }
+resource "aws_eip" "elastic_ip" {
+  domain = "vpc"
+  #   tags = {
+  #     Name = var.instance_name
+  #   }
 }
+
+# Resource block for ec2 and eip association #
+resource "aws_eip_association" "eip_assoc" {
+  instance_id   = aws_instance.nginx.id
+  allocation_id = aws_eip.elastic_ip.id
+}
+
+
+# resource "null_resource" "run_ansible" {
+#   triggers = {
+#     instance_id = aws_instance.nginx.id
+#   }
+
+#   provisioner "local-exec" {
+#     command = "ansible-playbook -i ${aws_instance.nginx.public_ip}, --private-key ~/Downloads/public-instance.pem ./ansible/nginx.yml"
+#   }
+# }
 
