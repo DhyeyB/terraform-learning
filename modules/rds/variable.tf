@@ -15,8 +15,3 @@
 #   description = "Availability Zones"
 #   default     = ["ap-south-1a", "ap-south-1b"]
 # }
-
-variable "ingress_ports" {
-    description = "Inbound ports to be opened."
-    type = list(number)
-}

@@ -1,9 +1,8 @@
-# create vpc from module
-module "vpc" {
-  source               = "../vpc"
-  public_subnet_cidrs  = var.public_subnet_cidrs
-  private_subnet_cidrs = var.private_subnet_cidrs
-  azs                  = var.azs
+data "terraform_remote_state" "vpc" {
+  backend = "local"
+  config = {
+    path = "${path.module}/../../terraform.tfstate"
+  }
 }
 
 locals {
@@ -16,10 +15,9 @@ locals {
 }
 
 
-###############     Public EC2 Instance (Bation Host)     ###########
 resource "aws_security_group" "public-sg" {
   name_prefix = "public-sg-"
-  vpc_id      = module.vpc.vpc_id
+  vpc_id      = data.terraform_remote_state.vpc.outputs.my_vpc_id
   dynamic "ingress" {
     iterator = port
     for_each = var.ingress_ports
@@ -40,13 +38,13 @@ resource "aws_security_group" "public-sg" {
 }
 
 resource "aws_instance" "nginx" {
-  ami                     = local.ami
-  instance_type           = local.instance_type
-  subnet_id               = module.vpc.public_subnet_ids["Public-subnet-1"]
-  security_groups         = [aws_security_group.public-sg.id]
-  key_name                = local.key_name
-  disable_api_termination = true
-  #   associate_public_ip_address = true
+  ami                         = local.ami
+  instance_type               = local.instance_type
+  subnet_id                   = data.terraform_remote_state.vpc.outputs.vpc_public_subnet_ids["Public-subnet-1"]
+  security_groups             = [aws_security_group.public-sg.id]
+  key_name                    = local.key_name
+  disable_api_termination     = true
+  associate_public_ip_address = true
   ebs_block_device {
     device_name = "/dev/sda1"
     volume_size = local.instance_disk_size
@@ -75,30 +73,30 @@ resource "aws_instance" "nginx" {
       sudo apt install -y postgresql postgresql-contrib
     EOF
 
-  provisioner "remote-exec" {
-    inline = ["echo 'wait untill ssh is ready'"]
+  # provisioner "remote-exec" {
+  #   inline = ["echo 'wait untill ssh is ready'"]
 
-    connection {
-      type        = "ssh"
-      user        = local.user
-      private_key = local.private_key
-      host        = aws_instance.nginx.public_ip
-    }
-  }
-}
-
-resource "aws_eip" "elastic_ip" {
-  domain = "vpc"
-  #   tags = {
-  #     Name = var.instance_name
+  #   connection {
+  #     type        = "ssh"
+  #     user        = local.user
+  #     private_key = local.private_key
+  #     host        = aws_instance.nginx.public_ip
   #   }
+  # }
 }
+
+# resource "aws_eip" "elastic_ip" {
+#   domain = "vpc"
+#   #   tags = {
+#   #     Name = var.instance_name
+#   #   }
+# }
 
 # Resource block for ec2 and eip association #
-resource "aws_eip_association" "eip_assoc" {
-  instance_id   = aws_instance.nginx.id
-  allocation_id = aws_eip.elastic_ip.id
-}
+# resource "aws_eip_association" "eip_assoc" {
+#   instance_id   = aws_instance.nginx.id
+#   allocation_id = aws_eip.elastic_ip.id
+# }
 
 
 # resource "null_resource" "run_ansible" {
